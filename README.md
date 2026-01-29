@@ -170,4 +170,4 @@ This plugin does not implement iOS. For a similar experience on iOS you would us
 
 ## License
 
-BSD 3-Clause. See [LICENSE](LICENSE).
+Apache License 2.0. See [LICENSE](LICENSE).
