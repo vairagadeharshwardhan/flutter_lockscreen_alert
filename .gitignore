@@ -1,0 +1,30 @@
+# Build
+build/
+*.iml
+.dart_tool/
+.packages
+pubspec.lock
+
+# Android
+android/.gradle/
+android/local.properties
+android/**/build/
+example/android/.gradle/
+example/android/local.properties
+example/android/**/build/
+
+# iOS
+ios/Pods/
+ios/.symlinks/
+ios/Flutter/Flutter.framework
+ios/Flutter/Flutter.podspec
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
