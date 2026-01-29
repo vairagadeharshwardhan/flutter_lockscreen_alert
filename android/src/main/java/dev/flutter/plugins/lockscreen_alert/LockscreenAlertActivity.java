@@ -72,7 +72,7 @@ public class LockscreenAlertActivity extends FlutterActivity {
 
     @NonNull
     @Override
-    protected FlutterEngine provideFlutterEngine(@NonNull Context context) {
+    public FlutterEngine provideFlutterEngine(@NonNull Context context) {
         FlutterEngineGroup group = new FlutterEngineGroup(context);
         DartExecutor.DartEntrypoint entrypoint = new DartExecutor.DartEntrypoint(
                 FlutterInjector.instance().flutterLoader().findAppBundlePath(),
