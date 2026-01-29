@@ -16,9 +16,9 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
+    return const MaterialApp(
       title: 'Lockscreen Alert Example',
-      home: const HomePage(),
+      home: HomePage(),
     );
   }
 }
@@ -87,13 +87,15 @@ class LockscreenAlertApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
+    return const MaterialApp(
       home: LockscreenAlertScreen(),
     );
   }
 }
 
 class LockscreenAlertScreen extends StatefulWidget {
+  const LockscreenAlertScreen({super.key});
+
   @override
   State<LockscreenAlertScreen> createState() => _LockscreenAlertScreenState();
 }

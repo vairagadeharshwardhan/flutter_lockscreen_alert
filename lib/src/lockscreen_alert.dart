@@ -58,7 +58,7 @@ class LockscreenAlert {
             ? (call.arguments as Map)['action'] as String?
             : null;
         final Map<String, dynamic>? data = call.arguments is Map
-            ? (call.arguments as Map)['data'] as Map??
+            ? (call.arguments as Map)['data'] as Map<String, dynamic>?
             : null;
         if (action != null) {
           LockscreenAlert._handleAction(
@@ -79,11 +79,7 @@ class LockscreenAlert {
 
   /// Optional: set the Dart entrypoint name (default [kLockscreenAlertEntrypoint]).
   /// Must be called before [show] if you use a custom entrypoint.
-  static String _entrypoint = kLockscreenAlertEntrypoint;
-
-  static set entrypoint(String name) {
-    _entrypoint = name;
-  }
+  static String entrypoint = kLockscreenAlertEntrypoint;
 
   /// Shows the lock-screen alert with [payload].
   ///
