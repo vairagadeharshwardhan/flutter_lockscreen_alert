@@ -1,7 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- Base theme without API-27-only attributes so resource linking works when minSdk < 27 -->
+    <!-- API 27+: windowShowWhenLocked and windowTurnScreenOn exist in platform attrs -->
     <style name="LockscreenAlertTheme" parent="Theme.AppCompat.Light.NoActionBar">
+        <item name="android:windowShowWhenLocked">true</item>
+        <item name="android:windowTurnScreenOn">true</item>
         <item name="android:windowBackground">@android:color/transparent</item>
         <item name="android:colorBackgroundCacheHint">@null</item>
     </style>
