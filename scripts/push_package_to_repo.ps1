@@ -36,13 +36,13 @@ if ($LASTEXITCODE -ne 0) {
 }
 
 # If the GitHub repo already had content (e.g. LICENSE), pull first
-$branch = git rev-parse --abbrev-ref HEAD 2>$null
-git fetch origin 2>$null
+$null = git rev-parse --abbrev-ref HEAD 2>&1
+git fetch origin 2>&1 | Out-Null
 if ($LASTEXITCODE -eq 0) {
-    $remoteMain = git rev-parse origin/main 2>$null
+    $remoteMain = git rev-parse origin/main 2>&1
     if ($remoteMain) {
         Write-Host "Remote has existing commits. Pulling with --allow-unrelated-histories..."
-        git pull origin main --allow-unrelated-histories --no-edit 2>$null
+        git pull origin main --allow-unrelated-histories --no-edit 2>&1 | Out-Null
     }
 }
 
