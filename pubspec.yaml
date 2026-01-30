@@ -4,7 +4,7 @@ description: >-
   Android full-screen intents. Ideal for incoming calls, bookings, or
   time-sensitive alerts that must be visible and interactive when the screen
   is locked.
-version: 1.0.5
+version: 1.0.6
 homepage: https://github.com/vairagadeharshwardhan/flutter_lockscreen_alert
 repository: https://github.com/vairagadeharshwardhan/flutter_lockscreen_alert
 issue_tracker: https://github.com/vairagadeharshwardhan/flutter_lockscreen_alert/issues

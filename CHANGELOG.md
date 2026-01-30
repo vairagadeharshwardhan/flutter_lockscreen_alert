@@ -1,3 +1,8 @@
+## 1.0.6
+
+* **Android:** Set SharedPreferences key `flutter_lockscreen_alert_activity_visible` (in FlutterSharedPreferences) when the lock-screen Activity is shown and clear it when destroyed, so the host app can close its overlay and avoid showing two booking cards (overlay + lock-screen UI).
+* **Android:** Acquire a brief WakeLock when posting the full-screen notification so the screen starts waking before the activity launches.
+
 ## 1.0.5
 
 * **Android:** Acquire `WakeLock` (SCREEN_BRIGHT_WAKE_LOCK | ACQUIRE_CAUSES_WAKEUP) when the lock-screen Activity is shown so the screen fully wakes on OEMs (e.g. Xiaomi/MIUI) that otherwise only show a brief "breath" or edge light.

@@ -3,6 +3,7 @@ package dev.flutter.plugins.lockscreen_alert;
 import android.app.NotificationManager;
 import android.content.Context;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.PowerManager;
@@ -24,6 +25,8 @@ import io.flutter.FlutterInjector;
 public class LockscreenAlertActivity extends FlutterActivity {
 
     static final String EXTRA_ALERT_ID = "alert_id";
+    /** SharedPreferences key (same as Flutter shared_preferences) so host app can close overlay when this activity is shown. */
+    public static final String PREFS_KEY_ACTIVITY_VISIBLE = "flutter_lockscreen_alert_activity_visible";
 
     private int alertId;
     private FlutterEngine lockScreenEngine;
@@ -48,13 +51,22 @@ public class LockscreenAlertActivity extends FlutterActivity {
         }
         super.onCreate(savedInstanceState);
         acquireWakeLock();
+        setActivityVisibleFlag(true);
 
         alertId = getIntent().getIntExtra(EXTRA_ALERT_ID, -1);
         if (alertId == -1) {
+            setActivityVisibleFlag(false);
             releaseWakeLock();
             finish();
             return;
         }
+    }
+
+    private void setActivityVisibleFlag(boolean visible) {
+        try {
+            SharedPreferences prefs = getSharedPreferences("FlutterSharedPreferences", Context.MODE_PRIVATE);
+            prefs.edit().putBoolean(PREFS_KEY_ACTIVITY_VISIBLE, visible).apply();
+        } catch (Exception ignored) { }
     }
 
     private void acquireWakeLock() {
@@ -141,6 +153,7 @@ public class LockscreenAlertActivity extends FlutterActivity {
 
     @Override
     protected void onDestroy() {
+        setActivityVisibleFlag(false);
         releaseWakeLock();
         if (alertChannel != null) {
             alertChannel.setMethodCallHandler(null);

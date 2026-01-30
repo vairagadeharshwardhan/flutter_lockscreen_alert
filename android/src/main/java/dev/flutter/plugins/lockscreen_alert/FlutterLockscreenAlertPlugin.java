@@ -6,6 +6,9 @@ import android.app.PendingIntent;
 import android.content.Context;
 import android.content.Intent;
 import android.os.Build;
+import android.os.Handler;
+import android.os.Looper;
+import android.os.PowerManager;
 import android.util.Log;
 
 import androidx.annotation.NonNull;
@@ -152,10 +155,28 @@ public class FlutterLockscreenAlertPlugin implements FlutterPlugin, MethodCallHa
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
             builder.setTimeoutAfter(0);
         }
+        PowerManager.WakeLock briefWakeLock = null;
+        try {
+            PowerManager pm = (PowerManager) applicationContext.getSystemService(Context.POWER_SERVICE);
+            if (pm != null) {
+                int flags = PowerManager.SCREEN_BRIGHT_WAKE_LOCK | PowerManager.ACQUIRE_CAUSES_WAKEUP;
+                briefWakeLock = pm.newWakeLock(flags, "flutter_lockscreen_alert:show");
+                briefWakeLock.acquire(3000); // 3 s max; activity will acquire its own
+            }
+        } catch (Exception ignored) { }
         try {
             nm.notify(id, builder.build());
             result.success(id);
+            if (briefWakeLock != null) {
+                Handler h = new Handler(Looper.getMainLooper());
+                h.postDelayed(() -> {
+                    try {
+                        if (briefWakeLock != null && briefWakeLock.isHeld()) briefWakeLock.release();
+                    } catch (Exception ignored) { }
+                }, 2500);
+            }
         } catch (SecurityException e) {
+            if (briefWakeLock != null && briefWakeLock.isHeld()) try { briefWakeLock.release(); } catch (Exception ignored) { }
             removePayload(id);
             Log.e(TAG, "Full-screen intent permission or notification permission denied", e);
             result.error("PERMISSION", e.getMessage(), null);
