@@ -48,6 +48,17 @@ public class LockscreenAlertActivity extends FlutterActivity {
         }
     }
 
+    /**
+     * Cancel the notification as soon as the full-screen UI is shown so the user
+     * does not see a notification tile — only the booking card.
+     */
+    @Override
+    protected void onStart() {
+        super.onStart();
+        NotificationManager nm = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
+        if (nm != null) nm.cancel(alertId);
+    }
+
     @Override
     public void configureFlutterEngine(@NonNull FlutterEngine flutterEngine) {
         super.configureFlutterEngine(flutterEngine);

@@ -120,10 +120,15 @@ public class FlutterLockscreenAlertPlugin implements FlutterPlugin, MethodCallHa
         }
 
         Intent fullScreenIntent = new Intent(applicationContext, LockscreenAlertActivity.class);
-        fullScreenIntent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK
+        int intentFlags = Intent.FLAG_ACTIVITY_NEW_TASK
                 | Intent.FLAG_ACTIVITY_CLEAR_TOP
                 | Intent.FLAG_ACTIVITY_NO_USER_ACTION
-                | Intent.FLAG_ACTIVITY_EXCLUDE_FROM_RECENTS);
+                | Intent.FLAG_ACTIVITY_EXCLUDE_FROM_RECENTS;
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
+            intentFlags |= 0x00080000; // FLAG_ACTIVITY_SHOW_WHEN_LOCKED (API 27)
+            intentFlags |= 0x00040000; // FLAG_ACTIVITY_TURN_SCREEN_ON (API 27)
+        }
+        fullScreenIntent.setFlags(intentFlags);
         fullScreenIntent.putExtra(LockscreenAlertActivity.EXTRA_ALERT_ID, id);
 
         int flags = PendingIntent.FLAG_UPDATE_CURRENT;
@@ -180,7 +185,7 @@ public class FlutterLockscreenAlertPlugin implements FlutterPlugin, MethodCallHa
             NotificationChannel channel = new NotificationChannel(
                     channelId,
                     channelName,
-                    NotificationManager.IMPORTANCE_HIGH);
+                    NotificationManager.IMPORTANCE_MAX);
             channel.setLockscreenVisibility(android.app.Notification.VISIBILITY_PUBLIC);
             NotificationManager nm = (NotificationManager)
                     applicationContext.getSystemService(Context.NOTIFICATION_SERVICE);
