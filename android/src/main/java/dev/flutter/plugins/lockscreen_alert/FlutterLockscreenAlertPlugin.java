@@ -159,8 +159,8 @@ public class FlutterLockscreenAlertPlugin implements FlutterPlugin, MethodCallHa
         try {
             PowerManager pm = (PowerManager) applicationContext.getSystemService(Context.POWER_SERVICE);
             if (pm != null) {
-                int flags = PowerManager.SCREEN_BRIGHT_WAKE_LOCK | PowerManager.ACQUIRE_CAUSES_WAKEUP;
-                briefWakeLock = pm.newWakeLock(flags, "flutter_lockscreen_alert:show");
+                int wakeLockFlags = PowerManager.SCREEN_BRIGHT_WAKE_LOCK | PowerManager.ACQUIRE_CAUSES_WAKEUP;
+                briefWakeLock = pm.newWakeLock(wakeLockFlags, "flutter_lockscreen_alert:show");
                 briefWakeLock.acquire(3000); // 3 s max; activity will acquire its own
             }
         } catch (Exception ignored) { }
@@ -168,10 +168,11 @@ public class FlutterLockscreenAlertPlugin implements FlutterPlugin, MethodCallHa
             nm.notify(id, builder.build());
             result.success(id);
             if (briefWakeLock != null) {
+                final PowerManager.WakeLock wlToRelease = briefWakeLock;
                 Handler h = new Handler(Looper.getMainLooper());
                 h.postDelayed(() -> {
                     try {
-                        if (briefWakeLock != null && briefWakeLock.isHeld()) briefWakeLock.release();
+                        if (wlToRelease != null && wlToRelease.isHeld()) wlToRelease.release();
                     } catch (Exception ignored) { }
                 }, 2500);
             }

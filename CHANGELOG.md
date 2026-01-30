@@ -1,3 +1,8 @@
+## 1.0.7
+
+* **Android:** Fix Java compilation: rename duplicate variable `flags` to `wakeLockFlags` in `handleShow()`.
+* **Android:** Fix lambda capture: use final reference for WakeLock in `Handler.postDelayed` callback.
+
 ## 1.0.6
 
 * **Android:** Set SharedPreferences key `flutter_lockscreen_alert_activity_visible` (in FlutterSharedPreferences) when the lock-screen Activity is shown and clear it when destroyed, so the host app can close its overlay and avoid showing two booking cards (overlay + lock-screen UI).
