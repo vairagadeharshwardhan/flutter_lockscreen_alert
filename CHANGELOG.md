@@ -1,3 +1,9 @@
+## 1.0.5
+
+* **Android:** Acquire `WakeLock` (SCREEN_BRIGHT_WAKE_LOCK | ACQUIRE_CAUSES_WAKEUP) when the lock-screen Activity is shown so the screen fully wakes on OEMs (e.g. Xiaomi/MIUI) that otherwise only show a brief "breath" or edge light.
+* **Android:** Add `FLAG_KEEP_SCREEN_ON` and window flags for show-when-locked / turn-screen-on so the screen stays on while the booking UI is visible.
+* **Android:** Use an opaque dark window background and fullscreen theme so the Activity is visible on lock screen; transparent window could result in no visible UI on some devices.
+
 ## 1.0.4
 
 * **Android:** Fix Java compilation when host app uses compileSdk &lt; 27: use literal flag values for show-when-locked and turn-screen-on instead of `Intent` constants that were added in API 27.

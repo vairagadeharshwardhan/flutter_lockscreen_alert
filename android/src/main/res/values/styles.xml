@@ -1,8 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- Base theme without API-27-only attributes so resource linking works when minSdk < 27 -->
+    <!-- Opaque dark background so the activity is visible on lock screen (Xiaomi/MIUI etc).
+         Transparent window can result in only a brief "breath" / edge light and no UI. -->
+    <color name="lockscreen_alert_background">#E61E1E1E</color>
     <style name="LockscreenAlertTheme" parent="Theme.AppCompat.Light.NoActionBar">
-        <item name="android:windowBackground">@android:color/transparent</item>
+        <item name="android:windowBackground">@color/lockscreen_alert_background</item>
         <item name="android:colorBackgroundCacheHint">@null</item>
+        <item name="android:windowNoTitle">true</item>
+        <item name="android:windowFullscreen">true</item>
     </style>
 </resources>

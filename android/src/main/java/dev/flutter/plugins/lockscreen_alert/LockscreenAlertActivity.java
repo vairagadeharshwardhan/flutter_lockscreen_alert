@@ -5,6 +5,7 @@ import android.content.Context;
 import android.content.Intent;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.PowerManager;
 import android.view.WindowManager;
 
 import androidx.annotation.NonNull;
@@ -27,6 +28,7 @@ public class LockscreenAlertActivity extends FlutterActivity {
     private int alertId;
     private FlutterEngine lockScreenEngine;
     private MethodChannel alertChannel;
+    private PowerManager.WakeLock wakeLock;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -39,13 +41,40 @@ public class LockscreenAlertActivity extends FlutterActivity {
                             | WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON
                             | WindowManager.LayoutParams.FLAG_DISMISS_KEYGUARD);
         }
+        getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
+            getWindow().addFlags(0x00080000); // FLAG_SHOW_WHEN_LOCKED (API 27)
+            getWindow().addFlags(0x00040000); // FLAG_TURN_SCREEN_ON (API 27)
+        }
         super.onCreate(savedInstanceState);
+        acquireWakeLock();
 
         alertId = getIntent().getIntExtra(EXTRA_ALERT_ID, -1);
         if (alertId == -1) {
+            releaseWakeLock();
             finish();
             return;
         }
+    }
+
+    private void acquireWakeLock() {
+        try {
+            PowerManager pm = (PowerManager) getSystemService(Context.POWER_SERVICE);
+            if (pm != null) {
+                int flags = PowerManager.SCREEN_BRIGHT_WAKE_LOCK | PowerManager.ACQUIRE_CAUSES_WAKEUP;
+                wakeLock = pm.newWakeLock(flags, "flutter_lockscreen_alert:activity");
+                wakeLock.acquire(5 * 60 * 1000L); // 5 min max; released in onDestroy
+            }
+        } catch (Exception ignored) { }
+    }
+
+    private void releaseWakeLock() {
+        try {
+            if (wakeLock != null && wakeLock.isHeld()) {
+                wakeLock.release();
+                wakeLock = null;
+            }
+        } catch (Exception ignored) { }
     }
 
     /**
@@ -112,6 +141,7 @@ public class LockscreenAlertActivity extends FlutterActivity {
 
     @Override
     protected void onDestroy() {
+        releaseWakeLock();
         if (alertChannel != null) {
             alertChannel.setMethodCallHandler(null);
         }
