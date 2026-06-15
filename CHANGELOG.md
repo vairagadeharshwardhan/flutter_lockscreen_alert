@@ -1,3 +1,8 @@
+## 1.0.13
+
+* **Android 14 (API 34):** Added `canUseFullScreenIntent()` and `requestFullScreenIntentPermission()`. On API 34+ the full-screen-intent permission is NOT auto-granted to non-call/alarm apps; without it `setFullScreenIntent` silently demotes to a heads-up and the lock-screen takeover does not auto-launch. Call `canUseFullScreenIntent()` during onboarding and, if false, route the user to `requestFullScreenIntentPermission()` (opens `Settings.ACTION_MANAGE_APP_USE_FULL_SCREEN_INTENT`).
+* **Android (secure lock screen):** On Accept, the Activity now calls `KeyguardManager.requestDismissKeyguard()` (prompts PIN/biometric on API 26+) and then launches the host app, so an action taken from a *secure* lock screen actually surfaces the app instead of being stuck behind the keyguard. Cancelling the unlock keeps the alert up.
+
 ## 1.0.12
 
 * **Dart:** Added optional `notificationOnly` parameter to `show()`. When `true`, only the notification is posted and the full-screen Activity is not launched (user must tap notification to open). When `false` (default), the plugin posts the notification and launches the full-screen Activity so the booking card appears on the lock screen immediately. Use `notificationOnly: true` when the app was in foreground and the user locked the screen; use default when the app is in background and device is locked.

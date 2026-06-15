@@ -161,6 +161,33 @@ class LockscreenAlert {
     }
   }
 
+  /// Android 14+ (API 34): whether the app may currently fire full-screen
+  /// intents. On API 34+ this is a user-grantable permission that is NOT
+  /// auto-granted to non-call/alarm apps — if it returns false, the lock-screen
+  /// takeover silently demotes to a heads-up notification. Returns true on
+  /// older Android and non-Android platforms.
+  static Future<bool> canUseFullScreenIntent() async {
+    try {
+      final r = await _channel.invokeMethod<bool>('canUseFullScreenIntent');
+      return r ?? true;
+    } on PlatformException {
+      return true;
+    }
+  }
+
+  /// Opens the Android 14+ "Full-screen notifications" settings screen for this
+  /// app so the user can grant the permission. Call this from onboarding when
+  /// [canUseFullScreenIntent] is false. No-op (returns true) below API 34.
+  static Future<bool> requestFullScreenIntentPermission() async {
+    try {
+      final r = await _channel
+          .invokeMethod<bool>('requestFullScreenIntentPermission');
+      return r ?? false;
+    } on PlatformException {
+      return false;
+    }
+  }
+
   /// Whether the platform supports lock-screen alerts (Android with full-screen intent).
   static Future<bool> isSupported() async {
     try {

@@ -1,5 +1,6 @@
 package dev.flutter.plugins.lockscreen_alert;
 
+import android.app.KeyguardManager;
 import android.app.NotificationManager;
 import android.content.Context;
 import android.content.Intent;
@@ -171,8 +172,36 @@ public class LockscreenAlertActivity extends FlutterActivity {
     }
 
     private void onUserAccepted() {
+        // On a SECURE lock screen the claim must surface the app from behind the
+        // keyguard — dismiss it first (prompts PIN/biometric on API 26+), then
+        // notify + launch the host app. Proceed on error; stay put if the user
+        // cancels the unlock.
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            KeyguardManager km = (KeyguardManager) getSystemService(Context.KEYGUARD_SERVICE);
+            if (km != null && km.isKeyguardLocked()) {
+                km.requestDismissKeyguard(this, new KeyguardManager.KeyguardDismissCallback() {
+                    @Override public void onDismissSucceeded() { completeAccept(); }
+                    @Override public void onDismissError() { completeAccept(); }
+                    @Override public void onDismissCancelled() { /* user cancelled unlock — keep the alert up */ }
+                });
+                return;
+            }
+        }
+        completeAccept();
+    }
+
+    private void completeAccept() {
         Map<String, Object> payload = FlutterLockscreenAlertPlugin.getPayload(alertId);
         FlutterLockscreenAlertPlugin.notifyMainApp("accepted", payload);
+        // Surface the host app (live trip) now that the keyguard is dismissed —
+        // same launch pattern as the USER_PRESENT path in the plugin.
+        try {
+            Intent launch = getPackageManager().getLaunchIntentForPackage(getPackageName());
+            if (launch != null) {
+                launch.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP);
+                startActivity(launch);
+            }
+        } catch (Exception ignored) { }
         finishAndCleanup();
     }
 

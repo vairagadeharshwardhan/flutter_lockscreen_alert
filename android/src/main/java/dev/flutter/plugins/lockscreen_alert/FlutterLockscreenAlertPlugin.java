@@ -11,6 +11,8 @@ import android.os.Build;
 import android.os.Handler;
 import android.os.Looper;
 import android.os.PowerManager;
+import android.net.Uri;
+import android.provider.Settings;
 import android.util.Log;
 
 import androidx.annotation.NonNull;
@@ -159,6 +161,12 @@ public class FlutterLockscreenAlertPlugin implements FlutterPlugin, MethodCallHa
             case "isSupported":
                 result.success(Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP);
                 break;
+            case "canUseFullScreenIntent":
+                result.success(canUseFullScreenIntent());
+                break;
+            case "requestFullScreenIntentPermission":
+                result.success(requestFullScreenIntentPermission());
+                break;
             default:
                 result.notImplemented();
         }
@@ -291,6 +299,40 @@ public class FlutterLockscreenAlertPlugin implements FlutterPlugin, MethodCallHa
             payloads.clear();
         }
         result.success(true);
+    }
+
+    /**
+     * Android 14 (API 34) gate: full-screen intents are no longer auto-granted to
+     * non-call/alarm apps. Returns whether this app may currently fire an FSI.
+     * Pre-34 it's granted by holding USE_FULL_SCREEN_INTENT in the manifest.
+     */
+    private boolean canUseFullScreenIntent() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+            NotificationManager nm = (NotificationManager)
+                    applicationContext.getSystemService(Context.NOTIFICATION_SERVICE);
+            return nm != null && nm.canUseFullScreenIntent();
+        }
+        return true;
+    }
+
+    /**
+     * Opens the Android 14+ "full-screen notifications" settings screen for this
+     * app so the user can grant the permission. No-op (returns true) below API 34.
+     */
+    private boolean requestFullScreenIntentPermission() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+            try {
+                Intent intent = new Intent(Settings.ACTION_MANAGE_APP_USE_FULL_SCREEN_INTENT);
+                intent.setData(Uri.parse("package:" + applicationContext.getPackageName()));
+                intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                applicationContext.startActivity(intent);
+                return true;
+            } catch (Exception e) {
+                Log.e(TAG, "Could not open full-screen-intent settings", e);
+                return false;
+            }
+        }
+        return true;
     }
 
     /** Serialize payload to JSON so it can be passed in the Intent (survives process restart). */
