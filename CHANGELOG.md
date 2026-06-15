@@ -1,3 +1,26 @@
+## 1.0.12
+
+* **Dart:** Added optional `notificationOnly` parameter to `show()`. When `true`, only the notification is posted and the full-screen Activity is not launched (user must tap notification to open). When `false` (default), the plugin posts the notification and launches the full-screen Activity so the booking card appears on the lock screen immediately. Use `notificationOnly: true` when the app was in foreground and the user locked the screen; use default when the app is in background and device is locked.
+* **Android:** `handleShow()` reads `notificationOnly`; when true, skips `startActivity()` after posting the notification.
+
+## 1.0.11
+
+* **Android:** When the user unlocks (e.g. Face ID) while the lock-screen booking Activity is visible, the plugin now sets `flutter.show_booking_overlay_on_launch` in SharedPreferences and launches the main app with `FLAG_ACTIVITY_CLEAR_TOP`, so the host app can show the regular overlay instead of leaving the user on the lock-screen UI.
+
+## 1.0.10
+
+* **Android:** Pass payload in the full-screen Intent as JSON (`EXTRA_PAYLOAD_JSON`) so the lock-screen Activity has booking data when started in a new process (e.g. user taps notification after app was killed). This fixes the "only loading indicator" issue where `getPayload()` returned null and the booking card never appeared.
+* **Android:** Restore payload from Intent in `LockscreenAlertActivity` before `super.onCreate()` so the payload is available when the Flutter engine first calls `getPayload()`.
+* **Android:** Always attempt to start the full-screen Activity when `show()` is called (not only when `device_locked` is true), so the booking card shows immediately when possible (e.g. app in foreground or right after lock).
+
+## 1.0.9
+
+* **Android:** When the device is locked (`device_locked` in SharedPreferences), launch the full-screen Activity directly after posting the notification so the booking card appears immediately (like a WhatsApp call) without the user tapping the notification.
+
+## 1.0.8
+
+* **Android:** Register a `BroadcastReceiver` for `ACTION_SCREEN_OFF` and `ACTION_USER_PRESENT` in the plugin. Writes `device_locked` (true/false) to Flutter SharedPreferences (`FlutterSharedPreferences`, key `flutter.device_locked`) so the host app's background service can show lock-screen UI when the device is locked and overlay when unlocked, even if the user locked the device after the app went to background.
+
 ## 1.0.7
 
 * **Android:** Fix Java compilation: rename duplicate variable `flags` to `wakeLockFlags` in `handleShow()`.

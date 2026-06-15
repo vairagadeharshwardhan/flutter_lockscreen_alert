@@ -3,8 +3,10 @@ package dev.flutter.plugins.lockscreen_alert;
 import android.app.NotificationChannel;
 import android.app.NotificationManager;
 import android.app.PendingIntent;
+import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
+import android.content.IntentFilter;
 import android.os.Build;
 import android.os.Handler;
 import android.os.Looper;
@@ -14,7 +16,10 @@ import android.util.Log;
 import androidx.annotation.NonNull;
 import androidx.core.app.NotificationCompat;
 
+import org.json.JSONObject;
+
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.Map;
 
 import io.flutter.embedding.engine.plugins.FlutterPlugin;
@@ -27,9 +32,13 @@ import io.flutter.plugin.common.MethodChannel.Result;
 public class FlutterLockscreenAlertPlugin implements FlutterPlugin, MethodCallHandler {
 
     private static final String TAG = "LockscreenAlert";
+    /** Same SharedPreferences name and key prefix as Flutter shared_preferences plugin. */
+    private static final String PREFS_NAME = "FlutterSharedPreferences";
+    private static final String KEY_DEVICE_LOCKED = "flutter.device_locked";
 
     private Context applicationContext;
     private MethodChannel channel;
+    private BroadcastReceiver lockStateReceiver;
     private static io.flutter.plugin.common.BinaryMessenger mainAppMessenger;
     private static int nextNotificationId = LockscreenAlertConstants.NOTIFICATION_ID_BASE;
 
@@ -66,12 +75,76 @@ public class FlutterLockscreenAlertPlugin implements FlutterPlugin, MethodCallHa
         mainAppMessenger = binding.getBinaryMessenger();
         channel = new MethodChannel(binding.getBinaryMessenger(), LockscreenAlertConstants.CHANNEL);
         channel.setMethodCallHandler(this);
+        registerLockStateReceiver();
     }
 
     @Override
     public void onDetachedFromEngine(@NonNull FlutterPluginBinding binding) {
+        unregisterLockStateReceiver();
         channel.setMethodCallHandler(null);
         mainAppMessenger = null;
+    }
+
+    private static final String KEY_ACTIVITY_VISIBLE = "flutter_lockscreen_alert_activity_visible";
+    private static final String KEY_SHOW_BOOKING_OVERLAY_ON_LAUNCH = "flutter.show_booking_overlay_on_launch";
+
+    /** Updates device_locked in Flutter SharedPreferences so background service knows lock state. */
+    private void registerLockStateReceiver() {
+        lockStateReceiver = new BroadcastReceiver() {
+            @Override
+            public void onReceive(Context context, Intent intent) {
+                if (context == null || intent == null) return;
+                String action = intent.getAction();
+                if (action == null) return;
+                boolean locked = Intent.ACTION_SCREEN_OFF.equals(action);
+                try {
+                    context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+                            .edit()
+                            .putBoolean(KEY_DEVICE_LOCKED, locked)
+                            .apply();
+                    Log.d(TAG, "device_locked=" + locked + " (" + action + ")");
+                    // When user unlocks (e.g. Face ID) while lock-screen booking is visible, bring main app to front
+                    // with overlay so they see the regular overlay instead of staying on lock-screen UI.
+                    if (Intent.ACTION_USER_PRESENT.equals(action)) {
+                        boolean activityVisible = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+                                .getBoolean(KEY_ACTIVITY_VISIBLE, false);
+                        if (activityVisible) {
+                            context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+                                    .edit()
+                                    .putBoolean(KEY_SHOW_BOOKING_OVERLAY_ON_LAUNCH, true)
+                                    .apply();
+                            Intent launch = context.getPackageManager().getLaunchIntentForPackage(context.getPackageName());
+                            if (launch != null) {
+                                launch.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP);
+                                context.startActivity(launch);
+                                Log.d(TAG, "USER_PRESENT: launched main app with CLEAR_TOP for overlay");
+                            }
+                        }
+                    }
+                } catch (Exception e) {
+                    Log.e(TAG, "Failed to write device_locked or launch main app", e);
+                }
+            }
+        };
+        IntentFilter filter = new IntentFilter();
+        filter.addAction(Intent.ACTION_SCREEN_OFF);
+        filter.addAction(Intent.ACTION_USER_PRESENT);
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            applicationContext.registerReceiver(lockStateReceiver, filter, Context.RECEIVER_NOT_EXPORTED);
+        } else {
+            applicationContext.registerReceiver(lockStateReceiver, filter);
+        }
+        Log.d(TAG, "LockStateReceiver registered");
+    }
+
+    private void unregisterLockStateReceiver() {
+        if (lockStateReceiver != null) {
+            try {
+                applicationContext.unregisterReceiver(lockStateReceiver);
+            } catch (Exception ignored) { }
+            lockStateReceiver = null;
+            Log.d(TAG, "LockStateReceiver unregistered");
+        }
     }
 
     @Override
@@ -107,6 +180,8 @@ public class FlutterLockscreenAlertPlugin implements FlutterPlugin, MethodCallHa
         String body = (String) args.get("notificationBody");
         String channelId = (String) args.get("notificationChannelId");
         String channelName = (String) args.get("notificationChannelName");
+        Object notificationOnlyObj = args.get("notificationOnly");
+        boolean notificationOnly = Boolean.TRUE.equals(notificationOnlyObj);
         if (title == null) title = "Alert";
         if (body == null) body = "Tap to open";
         if (channelId == null) channelId = LockscreenAlertConstants.CHANNEL_ID_DEFAULT;
@@ -133,6 +208,11 @@ public class FlutterLockscreenAlertPlugin implements FlutterPlugin, MethodCallHa
         }
         fullScreenIntent.setFlags(intentFlags);
         fullScreenIntent.putExtra(LockscreenAlertActivity.EXTRA_ALERT_ID, id);
+        // Pass payload in Intent so the Activity has it when started in a new process (e.g. user taps notification after app was killed).
+        String payloadJson = payloadToJson(payload);
+        if (payloadJson != null) {
+            fullScreenIntent.putExtra(LockscreenAlertActivity.EXTRA_PAYLOAD_JSON, payloadJson);
+        }
 
         int flags = PendingIntent.FLAG_UPDATE_CURRENT;
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
@@ -166,6 +246,17 @@ public class FlutterLockscreenAlertPlugin implements FlutterPlugin, MethodCallHa
         } catch (Exception ignored) { }
         try {
             nm.notify(id, builder.build());
+            // When notificationOnly is false (e.g. app in background, device locked), launch the
+            // full-screen Activity immediately so the booking card shows on the lock screen without a tap.
+            // When notificationOnly is true (app was in foreground, user locked), only the notification
+            // is shown; user taps to open.
+            if (!notificationOnly) {
+                try {
+                    applicationContext.startActivity(fullScreenIntent);
+                } catch (Exception e) {
+                    Log.w(TAG, "Could not launch full-screen activity directly (user may tap notification)", e);
+                }
+            }
             result.success(id);
             if (briefWakeLock != null) {
                 final PowerManager.WakeLock wlToRelease = briefWakeLock;
@@ -200,6 +291,26 @@ public class FlutterLockscreenAlertPlugin implements FlutterPlugin, MethodCallHa
             payloads.clear();
         }
         result.success(true);
+    }
+
+    /** Serialize payload to JSON so it can be passed in the Intent (survives process restart). */
+    private static String payloadToJson(Map<String, Object> payload) {
+        if (payload == null || payload.isEmpty()) return null;
+        try {
+            JSONObject j = new JSONObject();
+            for (Map.Entry<String, Object> e : payload.entrySet()) {
+                Object v = e.getValue();
+                if (v == null) {
+                    j.put(e.getKey(), JSONObject.NULL);
+                } else {
+                    j.put(e.getKey(), v);
+                }
+            }
+            return j.toString();
+        } catch (Exception e) {
+            Log.e(TAG, "payloadToJson failed", e);
+            return null;
+        }
     }
 
     private void createChannel(String channelId, String channelName) {

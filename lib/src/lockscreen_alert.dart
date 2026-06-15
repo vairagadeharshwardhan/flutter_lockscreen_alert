@@ -87,6 +87,12 @@ class LockscreenAlert {
   /// [notificationTitle] and [notificationBody] are used for the system
   /// notification that triggers the full-screen intent (visible in shade).
   ///
+  /// When [notificationOnly] is true, only the notification is posted; the
+  /// full-screen Activity is not launched (user must tap notification to open).
+  /// Use true when the app was in foreground and the user locked the screen.
+  /// Use false (default) when the app is in background and device is locked,
+  /// so the booking card shows automatically on the lock screen.
+  ///
   /// Returns the notification/alert id, or null on failure.
   static Future<int?> show({
     required Map<String, dynamic> payload,
@@ -94,6 +100,7 @@ class LockscreenAlert {
     String? notificationBody,
     String? notificationChannelId,
     String? notificationChannelName,
+    bool notificationOnly = false,
   }) async {
     try {
       final id = await _channel.invokeMethod<int?>('show', <String, dynamic>{
@@ -103,6 +110,7 @@ class LockscreenAlert {
         'notificationChannelId': notificationChannelId ?? 'lockscreen_alert',
         'notificationChannelName':
             notificationChannelName ?? 'Critical Alerts',
+        'notificationOnly': notificationOnly,
       });
       return id;
     } on PlatformException catch (_) {

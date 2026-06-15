@@ -11,6 +11,10 @@ import android.view.WindowManager;
 
 import androidx.annotation.NonNull;
 
+import org.json.JSONObject;
+
+import java.util.HashMap;
+import java.util.Iterator;
 import java.util.Map;
 
 import io.flutter.embedding.android.FlutterActivity;
@@ -25,6 +29,8 @@ import io.flutter.FlutterInjector;
 public class LockscreenAlertActivity extends FlutterActivity {
 
     static final String EXTRA_ALERT_ID = "alert_id";
+    /** Intent extra: payload as JSON string so the Activity has booking data when started in a new process. */
+    static final String EXTRA_PAYLOAD_JSON = "payload_json";
     /** SharedPreferences key (same as Flutter shared_preferences) so host app can close overlay when this activity is shown. */
     public static final String PREFS_KEY_ACTIVITY_VISIBLE = "flutter_lockscreen_alert_activity_visible";
 
@@ -49,16 +55,42 @@ public class LockscreenAlertActivity extends FlutterActivity {
             getWindow().addFlags(0x00080000); // FLAG_SHOW_WHEN_LOCKED (API 27)
             getWindow().addFlags(0x00040000); // FLAG_TURN_SCREEN_ON (API 27)
         }
+        // Restore payload from Intent before super.onCreate() so it's in the map when Flutter engine calls getPayload().
+        alertId = getIntent().getIntExtra(EXTRA_ALERT_ID, -1);
+        if (alertId == -1) {
+            finish();
+            return;
+        }
+        String payloadJson = getIntent().getStringExtra(EXTRA_PAYLOAD_JSON);
+        if (payloadJson != null) {
+            Map<String, Object> restored = jsonToPayload(payloadJson);
+            if (restored != null) {
+                FlutterLockscreenAlertPlugin.payloads.put(alertId, restored);
+            }
+        }
         super.onCreate(savedInstanceState);
         acquireWakeLock();
         setActivityVisibleFlag(true);
+    }
 
-        alertId = getIntent().getIntExtra(EXTRA_ALERT_ID, -1);
-        if (alertId == -1) {
-            setActivityVisibleFlag(false);
-            releaseWakeLock();
-            finish();
-            return;
+    private static Map<String, Object> jsonToPayload(String json) {
+        if (json == null || json.isEmpty()) return null;
+        try {
+            JSONObject j = new JSONObject(json);
+            HashMap<String, Object> map = new HashMap<>();
+            Iterator<String> keys = j.keys();
+            while (keys.hasNext()) {
+                String k = keys.next();
+                Object v = j.opt(k);
+                if (v == JSONObject.NULL || v == null) {
+                    map.put(k, null);
+                } else {
+                    map.put(k, v);
+                }
+            }
+            return map;
+        } catch (Exception e) {
+            return null;
         }
     }
 
