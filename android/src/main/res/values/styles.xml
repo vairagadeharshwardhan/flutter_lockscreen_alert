@@ -1,9 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- Opaque dark background so the activity is visible on lock screen (Xiaomi/MIUI etc).
-         Transparent window can result in only a brief "breath" / edge light and no UI. -->
-    <color name="lockscreen_alert_background">#E61E1E1E</color>
-    <style name="LockscreenAlertTheme" parent="Theme.AppCompat.Light.NoActionBar">
+    <!-- Fully-opaque near-black background (matches the host app's in-Flutter
+         loading frame Color(0xFF0E1014)) so there is NO white/grey seam before
+         Flutter's first frame. Opaque alpha (FF) is required for reliable
+         visibility on Xiaomi/MIUI/HyperOS — a translucent window can show only a
+         brief "breath" / edge light and no UI. -->
+    <color name="lockscreen_alert_background">#FF0E1014</color>
+    <!-- Dark parent so colorBackground / native decor can't leak white either. -->
+    <style name="LockscreenAlertTheme" parent="Theme.AppCompat.NoActionBar">
         <item name="android:windowBackground">@color/lockscreen_alert_background</item>
         <item name="android:colorBackgroundCacheHint">@null</item>
         <item name="android:windowNoTitle">true</item>

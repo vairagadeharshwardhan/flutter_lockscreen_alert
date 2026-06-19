@@ -19,6 +19,7 @@ import java.util.Iterator;
 import java.util.Map;
 
 import io.flutter.embedding.android.FlutterActivity;
+import io.flutter.embedding.android.RenderMode;
 import io.flutter.embedding.engine.FlutterEngine;
 import io.flutter.embedding.engine.FlutterEngineGroup;
 import io.flutter.embedding.engine.dart.DartExecutor;
@@ -153,6 +154,20 @@ public class LockscreenAlertActivity extends FlutterActivity {
                 result.notImplemented();
             }
         });
+    }
+
+    /**
+     * Force TEXTURE render mode. The default for an opaque FlutterActivity is
+     * SURFACE, which adds a separate SurfaceView that flashes white for a frame
+     * or two before Flutter presents its first frame — very visible the instant
+     * the keyguard slides away. A TextureView renders inside the normal view
+     * hierarchy, so the dark windowBackground stays on screen right up until the
+     * first Flutter frame, eliminating the white flash.
+     */
+    @NonNull
+    @Override
+    public RenderMode getRenderMode() {
+        return RenderMode.texture;
     }
 
     @NonNull

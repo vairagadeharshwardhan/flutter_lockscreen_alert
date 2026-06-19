@@ -1,3 +1,8 @@
+## 1.0.14
+
+* **Android (no white flash):** `LockscreenAlertActivity` now forces `RenderMode.texture`. The default for an opaque `FlutterActivity` is `RenderMode.surface`, which adds a separate `SurfaceView` that flashes white for a frame or two before Flutter presents — very visible the instant the keyguard slides away. A `TextureView` renders inside the view hierarchy, so the dark `windowBackground` stays on screen right up until the first Flutter frame.
+* **Android:** `LockscreenAlertTheme.windowBackground` is now fully opaque near-black (`#FF0E1014`, was 90%-opaque `#E61E1E1E`) and the theme parent is the dark `Theme.AppCompat.NoActionBar` (was `.Light`), so neither the window placeholder nor native decor can leak white before first paint. Match this to your Dart loading frame for a seamless lock → card transition.
+
 ## 1.0.13
 
 * **Android 14 (API 34):** Added `canUseFullScreenIntent()` and `requestFullScreenIntentPermission()`. On API 34+ the full-screen-intent permission is NOT auto-granted to non-call/alarm apps; without it `setFullScreenIntent` silently demotes to a heads-up and the lock-screen takeover does not auto-launch. Call `canUseFullScreenIntent()` during onboarding and, if false, route the user to `requestFullScreenIntentPermission()` (opens `Settings.ACTION_MANAGE_APP_USE_FULL_SCREEN_INTENT`).
