@@ -49,6 +49,25 @@ class LockscreenAlert {
 
   static bool _handlerSet = false;
 
+  static void Function(Map<String, dynamic> payload)? _onShow;
+  static void Function()? _onReset;
+
+  /// Set by your lock-screen entrypoint. Called (native→Dart) when a real alert
+  /// must be shown on a PRE-WARMED engine that has been idling — load the
+  /// payload, render the card, start sound. On the cold path the engine starts
+  /// with the payload already available via [getPayload], so guard for both.
+  static set onShow(void Function(Map<String, dynamic> payload)? cb) {
+    _onShow = cb;
+    _ensureHandler();
+  }
+
+  /// Set by your lock-screen entrypoint. Called (native→Dart) just before the
+  /// Activity finishes so a REUSED cached engine returns to its idle/blank state.
+  static set onReset(void Function()? cb) {
+    _onReset = cb;
+    _ensureHandler();
+  }
+
   static void _ensureHandler() {
     if (_handlerSet) return;
     _handlerSet = true;
@@ -66,6 +85,15 @@ class LockscreenAlert {
             data != null ? Map<String, dynamic>.from(data) : null,
           );
         }
+      } else if (call.method == 'onShow') {
+        final a = call.arguments;
+        final map = a is Map
+            ? Map<String, dynamic>.from(
+                a.map((k, v) => MapEntry(k.toString(), v)))
+            : <String, dynamic>{};
+        _onShow?.call(map);
+      } else if (call.method == 'onReset') {
+        _onReset?.call();
       }
       return null;
     });
@@ -195,6 +223,19 @@ class LockscreenAlert {
       return result == true;
     } on PlatformException {
       return false;
+    }
+  }
+
+  /// Pre-warm and cache the lock-screen Flutter engine NOW (e.g. the moment the
+  /// driver goes online) so a later alert attaches an already-warm engine and
+  /// paints in well under a second, instead of cold-starting a fresh engine +
+  /// registering every plugin (~5 s) at the instant the booking arrives.
+  /// Idempotent and safe to call repeatedly. Android only; no-op elsewhere.
+  static Future<void> warmUp() async {
+    try {
+      await _channel.invokeMethod('warmUp');
+    } on PlatformException {
+      // ignore
     }
   }
 

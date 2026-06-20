@@ -1,3 +1,8 @@
+## 1.0.15
+
+* **Android (instant alert — pre-warm):** New `LockscreenAlert.warmUp()` creates and caches the lock-screen Flutter engine ahead of time (call it when the user goes online). When a booking arrives, `LockscreenAlertActivity` attaches the cached engine via `FlutterEngineCache` and the card paints in well under a second, instead of cold-starting a fresh engine + registering every plugin (~5 s) at the worst possible moment.
+* **Android:** The Activity now signals the idle pre-warmed UI to render via a native→Dart `onShow` (payload) call from `onStart()`, and `onReset` just before finish so the reused cached engine returns to idle for the next alert. Your entrypoint sets `LockscreenAlert.onShow` / `LockscreenAlert.onReset`; the cold/fallback path still works via `getPayload()` at startup. `shouldDestroyEngineWithHost()` keeps the cached engine alive (and destroys only a fresh fallback engine, avoiding a leak).
+
 ## 1.0.14
 
 * **Android (no white flash):** `LockscreenAlertActivity` now forces `RenderMode.texture`. The default for an opaque `FlutterActivity` is `RenderMode.surface`, which adds a separate `SurfaceView` that flashes white for a frame or two before Flutter presents — very visible the instant the keyguard slides away. A `TextureView` renders inside the view hierarchy, so the dark `windowBackground` stays on screen right up until the first Flutter frame.

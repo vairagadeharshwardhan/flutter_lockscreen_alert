@@ -24,6 +24,11 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
 
+import io.flutter.FlutterInjector;
+import io.flutter.embedding.engine.FlutterEngine;
+import io.flutter.embedding.engine.FlutterEngineCache;
+import io.flutter.embedding.engine.FlutterEngineGroup;
+import io.flutter.embedding.engine.dart.DartExecutor;
 import io.flutter.embedding.engine.plugins.FlutterPlugin;
 import io.flutter.plugin.common.MethodCall;
 import io.flutter.plugin.common.MethodChannel;
@@ -167,6 +172,9 @@ public class FlutterLockscreenAlertPlugin implements FlutterPlugin, MethodCallHa
             case "requestFullScreenIntentPermission":
                 result.success(requestFullScreenIntentPermission());
                 break;
+            case "warmUp":
+                handleWarmUp(result);
+                break;
             default:
                 result.notImplemented();
         }
@@ -299,6 +307,35 @@ public class FlutterLockscreenAlertPlugin implements FlutterPlugin, MethodCallHa
             payloads.clear();
         }
         result.success(true);
+    }
+
+    /**
+     * Pre-warm the lock-screen Flutter engine and cache it so a later alert
+     * attaches an already-warm engine (paints in <1s) instead of cold-starting
+     * the engine + registering every plugin (~5s) at the worst possible moment.
+     * Idempotent. Runs the same ENTRYPOINT; the Dart UI idles (no payload) until
+     * the Activity sends "onShow". Call when the driver goes online.
+     */
+    private void handleWarmUp(Result result) {
+        try {
+            if (FlutterEngineCache.getInstance()
+                    .get(LockscreenAlertConstants.CACHED_ENGINE_TAG) != null) {
+                result.success(true); // already warm
+                return;
+            }
+            FlutterEngineGroup group = new FlutterEngineGroup(applicationContext);
+            DartExecutor.DartEntrypoint entrypoint = new DartExecutor.DartEntrypoint(
+                    FlutterInjector.instance().flutterLoader().findAppBundlePath(),
+                    LockscreenAlertConstants.ENTRYPOINT);
+            FlutterEngine engine = group.createAndRunEngine(applicationContext, entrypoint);
+            FlutterEngineCache.getInstance()
+                    .put(LockscreenAlertConstants.CACHED_ENGINE_TAG, engine);
+            Log.d(TAG, "Lock-screen engine pre-warmed and cached");
+            result.success(true);
+        } catch (Exception e) {
+            Log.e(TAG, "warmUp failed", e);
+            result.success(false);
+        }
     }
 
     /**

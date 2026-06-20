@@ -21,6 +21,7 @@ import java.util.Map;
 import io.flutter.embedding.android.FlutterActivity;
 import io.flutter.embedding.android.RenderMode;
 import io.flutter.embedding.engine.FlutterEngine;
+import io.flutter.embedding.engine.FlutterEngineCache;
 import io.flutter.embedding.engine.FlutterEngineGroup;
 import io.flutter.embedding.engine.dart.DartExecutor;
 import io.flutter.plugin.common.MethodChannel;
@@ -40,6 +41,8 @@ public class LockscreenAlertActivity extends FlutterActivity {
     private FlutterEngine lockScreenEngine;
     private MethodChannel alertChannel;
     private PowerManager.WakeLock wakeLock;
+    /** True when this Activity attached the PRE-WARMED cached engine (vs a fresh fallback). */
+    private boolean usingCachedEngine = false;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -132,6 +135,16 @@ public class LockscreenAlertActivity extends FlutterActivity {
         super.onStart();
         NotificationManager nm = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
         if (nm != null) nm.cancel(alertId);
+        // Pre-warmed engine path: the idle Dart UI is waiting — push the payload
+        // now so it renders the card + starts sound. (On the cold/fallback path
+        // the UI shows itself from getPayload() at startup, so this is harmless
+        // there; the Dart side ignores a duplicate show.)
+        if (usingCachedEngine && alertChannel != null) {
+            Map<String, Object> payload = FlutterLockscreenAlertPlugin.getPayload(alertId);
+            try {
+                alertChannel.invokeMethod("onShow", payload);
+            } catch (Exception ignored) { }
+        }
     }
 
     @Override
@@ -173,12 +186,30 @@ public class LockscreenAlertActivity extends FlutterActivity {
     @NonNull
     @Override
     public FlutterEngine provideFlutterEngine(@NonNull Context context) {
+        // Pre-warm fast path: if the engine was warmed at go-online, attach it
+        // (already has Dart + plugins loaded → card paints in <1s). The idle UI
+        // is told to render via "onShow" from onStart(). Falls back to a fresh
+        // cold engine if nothing was warmed (e.g. process was killed since).
+        FlutterEngine cached = FlutterEngineCache.getInstance()
+                .get(LockscreenAlertConstants.CACHED_ENGINE_TAG);
+        if (cached != null) {
+            usingCachedEngine = true;
+            lockScreenEngine = cached;
+            return cached;
+        }
         FlutterEngineGroup group = new FlutterEngineGroup(context);
         DartExecutor.DartEntrypoint entrypoint = new DartExecutor.DartEntrypoint(
                 FlutterInjector.instance().flutterLoader().findAppBundlePath(),
                 LockscreenAlertConstants.ENTRYPOINT);
         lockScreenEngine = group.createAndRunEngine(context, entrypoint);
         return lockScreenEngine;
+    }
+
+    @Override
+    public boolean shouldDestroyEngineWithHost() {
+        // Keep the pre-warmed cached engine alive for the next alert; destroy only
+        // a fresh fallback engine we created for this one (so it doesn't leak).
+        return !usingCachedEngine;
     }
 
     private void onUserDismissed() {
@@ -221,6 +252,13 @@ public class LockscreenAlertActivity extends FlutterActivity {
     }
 
     private void finishAndCleanup() {
+        // Reset the REUSED cached engine's Dart UI back to idle so the next alert
+        // starts clean (no stale card/sound/timers). The engine survives finish().
+        if (usingCachedEngine && alertChannel != null) {
+            try {
+                alertChannel.invokeMethod("onReset", null);
+            } catch (Exception ignored) { }
+        }
         FlutterLockscreenAlertPlugin.removePayload(alertId);
         NotificationManager nm = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
         if (nm != null) nm.cancel(alertId);
