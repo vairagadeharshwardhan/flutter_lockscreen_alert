@@ -1,3 +1,8 @@
+## 1.0.16
+
+* **Android (fix: FSI firing while unlocked):** New `LockscreenAlert.isDeviceLocked()` returns the LIVE keyguard state (`KeyguardManager.isKeyguardLocked()`) — the authoritative signal for routing a booking to the lock-screen full-screen alert vs the over-apps overlay. The cached `device_locked` SharedPreferences flag (written from `ACTION_SCREEN_OFF` / `ACTION_USER_PRESENT`) gets stuck `true` on devices that never broadcast `ACTION_USER_PRESENT` (no secure lock, or OEM quirk), so the FSI fired even while the phone was unlocked. Prefer `isDeviceLocked()` at decision time.
+* **Android:** The lock-state `BroadcastReceiver` now also listens for `ACTION_SCREEN_ON` and recomputes `device_locked` from the live keyguard on `SCREEN_ON` / `USER_PRESENT` (true only on `SCREEN_OFF`), so the cached fallback flag also un-sticks without relying on `ACTION_USER_PRESENT`.
+
 ## 1.0.15
 
 * **Android (instant alert — pre-warm):** New `LockscreenAlert.warmUp()` creates and caches the lock-screen Flutter engine ahead of time (call it when the user goes online). When a booking arrives, `LockscreenAlertActivity` attaches the cached engine via `FlutterEngineCache` and the card paints in well under a second, instead of cold-starting a fresh engine + registering every plugin (~5 s) at the worst possible moment.

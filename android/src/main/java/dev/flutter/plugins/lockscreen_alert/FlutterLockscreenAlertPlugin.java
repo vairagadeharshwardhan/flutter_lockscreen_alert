@@ -1,5 +1,6 @@
 package dev.flutter.plugins.lockscreen_alert;
 
+import android.app.KeyguardManager;
 import android.app.NotificationChannel;
 import android.app.NotificationManager;
 import android.app.PendingIntent;
@@ -103,7 +104,13 @@ public class FlutterLockscreenAlertPlugin implements FlutterPlugin, MethodCallHa
                 if (context == null || intent == null) return;
                 String action = intent.getAction();
                 if (action == null) return;
-                boolean locked = Intent.ACTION_SCREEN_OFF.equals(action);
+                // SCREEN_OFF → locked. SCREEN_ON / USER_PRESENT → trust the LIVE
+                // keyguard, so the flag flips back to false even on devices that
+                // never broadcast ACTION_USER_PRESENT (no secure lock / OEM quirk)
+                // instead of being stuck `true` and forcing FSI while unlocked.
+                final boolean locked = Intent.ACTION_SCREEN_OFF.equals(action)
+                        ? true
+                        : isDeviceLockedLive();
                 try {
                     context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
                             .edit()
@@ -135,6 +142,7 @@ public class FlutterLockscreenAlertPlugin implements FlutterPlugin, MethodCallHa
         };
         IntentFilter filter = new IntentFilter();
         filter.addAction(Intent.ACTION_SCREEN_OFF);
+        filter.addAction(Intent.ACTION_SCREEN_ON);
         filter.addAction(Intent.ACTION_USER_PRESENT);
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             applicationContext.registerReceiver(lockStateReceiver, filter, Context.RECEIVER_NOT_EXPORTED);
@@ -168,6 +176,9 @@ public class FlutterLockscreenAlertPlugin implements FlutterPlugin, MethodCallHa
                 break;
             case "canUseFullScreenIntent":
                 result.success(canUseFullScreenIntent());
+                break;
+            case "isDeviceLocked":
+                result.success(isDeviceLockedLive());
                 break;
             case "requestFullScreenIntentPermission":
                 result.success(requestFullScreenIntentPermission());
@@ -335,6 +346,24 @@ public class FlutterLockscreenAlertPlugin implements FlutterPlugin, MethodCallHa
         } catch (Exception e) {
             Log.e(TAG, "warmUp failed", e);
             result.success(false);
+        }
+    }
+
+    /**
+     * LIVE lock state at the moment of asking — the authoritative source for the
+     * "FSI vs over-apps overlay" routing decision. The cached `device_locked`
+     * flag (written from ACTION_SCREEN_OFF / ACTION_USER_PRESENT) can be stale on
+     * devices that never broadcast ACTION_USER_PRESENT (no secure lock, or OEM
+     * quirk), leaving it stuck `true` and routing to FSI even while unlocked.
+     * KeyguardManager.isKeyguardLocked() reflects the true keyguard state now.
+     */
+    private boolean isDeviceLockedLive() {
+        try {
+            KeyguardManager km = (KeyguardManager)
+                    applicationContext.getSystemService(Context.KEYGUARD_SERVICE);
+            return km != null && km.isKeyguardLocked();
+        } catch (Exception e) {
+            return false;
         }
     }
 

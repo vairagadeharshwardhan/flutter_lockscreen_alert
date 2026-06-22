@@ -203,6 +203,21 @@ class LockscreenAlert {
     }
   }
 
+  /// LIVE keyguard state — the authoritative source for deciding "lock-screen
+  /// full-screen alert vs over-apps overlay" when a booking arrives. Prefer this
+  /// over the cached `device_locked` SharedPreferences flag, which can get stuck
+  /// `true` on devices that never broadcast `ACTION_USER_PRESENT` (no secure
+  /// lock / OEM quirk) — causing the FSI to fire even while the phone is
+  /// unlocked. Returns false on failure / non-Android.
+  static Future<bool> isDeviceLocked() async {
+    try {
+      final r = await _channel.invokeMethod<bool>('isDeviceLocked');
+      return r ?? false;
+    } on PlatformException {
+      return false;
+    }
+  }
+
   /// Opens the Android 14+ "Full-screen notifications" settings screen for this
   /// app so the user can grant the permission. Call this from onboarding when
   /// [canUseFullScreenIntent] is false. No-op (returns true) below API 34.
