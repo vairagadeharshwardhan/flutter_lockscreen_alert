@@ -1,3 +1,7 @@
+## 1.0.17
+
+* **Android (clean lock→unlock hand-off):** `LockscreenAlert.dismiss()` now also **finishes the live lock-screen Activity** (not just cancels the notification). The Activity registers itself as a process-static `sLiveInstance` in `onStart` (cleared in `onDestroy`), and the plugin's dismiss handler calls `finishLiveInstanceFromHost()`, which runs `finishAndCleanup()` on the Activity's UI thread — resetting the reused Dart engine (stopping the looping sound) and closing the card. This lets the host app close the full-screen alert on unlock and hand off to the in-app overlay with **no lingering card and no duplicate alert sound**.
+
 ## 1.0.16
 
 * **Android (fix: FSI firing while unlocked):** New `LockscreenAlert.isDeviceLocked()` returns the LIVE keyguard state (`KeyguardManager.isKeyguardLocked()`) — the authoritative signal for routing a booking to the lock-screen full-screen alert vs the over-apps overlay. The cached `device_locked` SharedPreferences flag (written from `ACTION_SCREEN_OFF` / `ACTION_USER_PRESENT`) gets stuck `true` on devices that never broadcast `ACTION_USER_PRESENT` (no secure lock, or OEM quirk), so the FSI fired even while the phone was unlocked. Prefer `isDeviceLocked()` at decision time.

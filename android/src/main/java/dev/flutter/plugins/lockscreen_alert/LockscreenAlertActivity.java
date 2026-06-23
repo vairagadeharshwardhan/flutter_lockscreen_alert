@@ -130,9 +130,27 @@ public class LockscreenAlertActivity extends FlutterActivity {
      * Cancel the notification as soon as the full-screen UI is shown so the user
      * does not see a notification tile — only the booking card.
      */
+    /** The currently-shown alert Activity, so the host app can finish it on
+     *  unlock — a clean hand-off to the in-app overlay with no lingering card or
+     *  duplicate alert sound. */
+    private static LockscreenAlertActivity sLiveInstance;
+
+    /** Finish the live lock-screen alert from ANOTHER engine (the host app, on
+     *  unlock). Resets the reused Dart UI (which stops the looping sound) and
+     *  closes the Activity, on its own UI thread. No-op if nothing is showing. */
+    static void finishLiveInstanceFromHost() {
+        final LockscreenAlertActivity a = sLiveInstance;
+        if (a != null) {
+            try {
+                a.runOnUiThread(() -> a.finishAndCleanup());
+            } catch (Exception ignored) { }
+        }
+    }
+
     @Override
     protected void onStart() {
         super.onStart();
+        sLiveInstance = this;
         NotificationManager nm = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
         if (nm != null) nm.cancel(alertId);
         // Pre-warmed engine path: the idle Dart UI is waiting — push the payload
@@ -267,6 +285,7 @@ public class LockscreenAlertActivity extends FlutterActivity {
 
     @Override
     protected void onDestroy() {
+        if (sLiveInstance == this) sLiveInstance = null;
         setActivityVisibleFlag(false);
         releaseWakeLock();
         if (alertChannel != null) {

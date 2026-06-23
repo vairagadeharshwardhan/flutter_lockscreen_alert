@@ -317,6 +317,10 @@ public class FlutterLockscreenAlertPlugin implements FlutterPlugin, MethodCallHa
             }
             payloads.clear();
         }
+        // Also FINISH the live lock-screen Activity if one is showing — lets the
+        // host app close the FSI on unlock and hand off cleanly to the in-app
+        // overlay (no lingering card, no duplicate alert sound). No-op otherwise.
+        LockscreenAlertActivity.finishLiveInstanceFromHost();
         result.success(true);
     }
 
