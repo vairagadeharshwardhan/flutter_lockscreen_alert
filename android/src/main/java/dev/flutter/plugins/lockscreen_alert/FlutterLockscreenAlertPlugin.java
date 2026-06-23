@@ -133,6 +133,15 @@ public class FlutterLockscreenAlertPlugin implements FlutterPlugin, MethodCallHa
                                 context.startActivity(launch);
                                 Log.d(TAG, "USER_PRESENT: launched main app with CLEAR_TOP for overlay");
                             }
+                            // Cleanly finish + RESET the live lock-screen alert now that
+                            // we're unlocked and handing off to the in-app overlay. This
+                            // invokes onReset on the cached engine (stops the looping FSI
+                            // sound) while the Activity is still alive — so the alert sound
+                            // does NOT keep playing in the cached lock-screen isolate and
+                            // overlap the over-apps overlay's own sound (the "double
+                            // sound"). No-op if nothing is live; the Activity's onDestroy
+                            // failsafe also resets if the OS reclaimed it first.
+                            LockscreenAlertActivity.finishLiveInstanceFromHost();
                         }
                     }
                 } catch (Exception e) {

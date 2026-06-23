@@ -43,6 +43,9 @@ public class LockscreenAlertActivity extends FlutterActivity {
     private PowerManager.WakeLock wakeLock;
     /** True when this Activity attached the PRE-WARMED cached engine (vs a fresh fallback). */
     private boolean usingCachedEngine = false;
+    /** True once finishAndCleanup() has already reset the cached engine, so the
+     *  onDestroy() failsafe doesn't reset it a second time. */
+    private boolean cleanedUp = false;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -277,6 +280,7 @@ public class LockscreenAlertActivity extends FlutterActivity {
                 alertChannel.invokeMethod("onReset", null);
             } catch (Exception ignored) { }
         }
+        cleanedUp = true;
         FlutterLockscreenAlertPlugin.removePayload(alertId);
         NotificationManager nm = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
         if (nm != null) nm.cancel(alertId);
@@ -288,6 +292,23 @@ public class LockscreenAlertActivity extends FlutterActivity {
         if (sLiveInstance == this) sLiveInstance = null;
         setActivityVisibleFlag(false);
         releaseWakeLock();
+        // FAILSAFE — stop the alert sound on EVERY destruction path.
+        // finishAndCleanup() (dismiss / accept / host finishLiveInstanceFromHost)
+        // already reset the cached engine and set cleanedUp=true. But the Activity
+        // is ALSO destroyed on paths that never call it: the USER_PRESENT receiver
+        // launches the main app (CLEAR_TOP) which destroys this Activity directly,
+        // and the OS can reclaim it / the user can swipe it away. Because the
+        // pre-warmed engine is CACHED (shouldDestroyEngineWithHost==false), its
+        // Dart isolate — and its looping alert sound — survive onDestroy. Without
+        // this, that sound keeps playing in the cached isolate until the 30s Dart
+        // expiry timer, overlapping the over-apps overlay's own sound on the
+        // unlock→app hand-off (the "double sound"). Resetting here stops it the
+        // instant the lock-screen UI goes away, regardless of how it was dismissed.
+        if (!cleanedUp && usingCachedEngine && alertChannel != null) {
+            try {
+                alertChannel.invokeMethod("onReset", null);
+            } catch (Exception ignored) { }
+        }
         if (alertChannel != null) {
             alertChannel.setMethodCallHandler(null);
         }
