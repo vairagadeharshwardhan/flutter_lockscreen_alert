@@ -304,7 +304,18 @@ public class LockscreenAlertActivity extends FlutterActivity {
         // expiry timer, overlapping the over-apps overlay's own sound on the
         // unlock→app hand-off (the "double sound"). Resetting here stops it the
         // instant the lock-screen UI goes away, regardless of how it was dismissed.
-        if (!cleanedUp && usingCachedEngine && alertChannel != null) {
+        //
+        // EXCEPT a config-change recreate (rotation, dark-mode / font-scale /
+        // locale / density / multi-window): the Activity is destroyed only to be
+        // immediately recreated, the cached engine + its sound should keep
+        // running, and the recreated Activity's onStart re-fires onShow
+        // (idempotent for the same booking). Resetting on that path would cause a
+        // needless stop→restart stutter for a still-valid alert.
+        // isChangingConfigurations() is true ONLY on that recreate path and false
+        // on real teardowns (USER_PRESENT, OS-reclaim, swipe-away) where we DO
+        // want the sound to stop.
+        if (!cleanedUp && !isChangingConfigurations()
+                && usingCachedEngine && alertChannel != null) {
             try {
                 alertChannel.invokeMethod("onReset", null);
             } catch (Exception ignored) { }
