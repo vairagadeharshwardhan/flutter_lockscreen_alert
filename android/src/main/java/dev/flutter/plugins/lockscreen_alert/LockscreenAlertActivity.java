@@ -154,8 +154,16 @@ public class LockscreenAlertActivity extends FlutterActivity {
     protected void onStart() {
         super.onStart();
         sLiveInstance = this;
-        NotificationManager nm = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
-        if (nm != null) nm.cancel(alertId);
+        // DELIBERATELY do NOT cancel the notification here. On OEMs that do not
+        // honour showWhenLocked over a secure keyguard (Xiaomi/MIUI, Oppo, Vivo,
+        // Realme, Transsion — the "Show on lock screen" toggle ships OFF and has
+        // NO API to read or grant), this Activity is occluded BEHIND the keyguard
+        // and never becomes visible. Cancelling the notification on start (on the
+        // assumption the card is now on screen) left the user with NOTHING — no
+        // card AND no tile. Keeping it makes the notification the GUARANTEED,
+        // tappable lock-screen alert on EVERY device; it is still cancelled on the
+        // real teardown paths (accept / dismiss / host-finish / expiry) inside
+        // finishAndCleanup(), so it never lingers after the booking is handled.
         // Pre-warmed engine path: the idle Dart UI is waiting — push the payload
         // now so it renders the card + starts sound. (On the cold/fallback path
         // the UI shows itself from getPayload() at startup, so this is harmless

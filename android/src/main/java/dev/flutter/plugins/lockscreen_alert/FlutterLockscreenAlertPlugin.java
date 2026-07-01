@@ -441,6 +441,16 @@ public class FlutterLockscreenAlertPlugin implements FlutterPlugin, MethodCallHa
                     channelName,
                     NotificationManager.IMPORTANCE_MAX);
             channel.setLockscreenVisibility(android.app.Notification.VISIBILITY_PUBLIC);
+            // Guaranteed haptic + heads-up on EVERY device — critical where the
+            // FSI Activity is occluded behind the keyguard (OEM "Show on lock
+            // screen" OFF), so the notification itself is the alert. IMPORTANCE_MAX
+            // already carries the default sound; make the vibration explicit and
+            // insistent. NOTE: a channel's importance/sound/vibration are LOCKED
+            // after first creation, so this shapes FRESH installs; existing
+            // installs already have a MAX channel (default sound + vibration).
+            channel.enableVibration(true);
+            channel.setVibrationPattern(new long[]{0, 400, 250, 400, 250, 600});
+            channel.enableLights(true);
             NotificationManager nm = (NotificationManager)
                     applicationContext.getSystemService(Context.NOTIFICATION_SERVICE);
             if (nm != null) nm.createNotificationChannel(channel);
